@@ -118,6 +118,20 @@ SK.platform.register({
   getCanonicalUrl() {
     const id = this.getVideoId();
     if (/^\d+$/.test(id)) return `https://www.tiktok.com/@x/video/${id}`;
+
+    // ShortKit original strategy: feed item container link
+    const v = this.getVideo();
+    const container = v?.closest(
+      '[data-e2e="recommend-list-item-container"], [class*="DivItemContainer"], [class*="DivVideoItemContainer"]'
+    );
+    if (container) {
+      const aTag = container.querySelector('a[href*="/video/"], a[href*="/v/"]');
+      if (aTag) {
+        SK.utils.log('TikTok URL from feed container:', aTag.href);
+        return aTag.href;
+      }
+    }
+
     SK.utils.log('TikTok getCanonicalUrl: no ID, falling back to', location.pathname);
     return location.href.split('?')[0];
   },

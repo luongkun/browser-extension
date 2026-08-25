@@ -24,11 +24,28 @@ SK.downloadManager = (() => {
 
   /**
    * Build a canonical page URL for the currently visible video.
-   * Delegates to platform adapters which detect feed position.
+   * Strategy copied from ShortKit original: find the active feed
+   * container and read its /video/ link.
    */
   function getCanonicalUrl() {
     const platform = SK.platform.current();
-    if (platform?.getCanonicalUrl) return platform.getCanonicalUrl();
+    if (platform?.getCanonicalUrl) {
+      const url = platform.getCanonicalUrl();
+      if (url && url !== location.href.split('?')[0]) return url;
+    }
+
+    // ShortKit original strategy: closest feed container with video link
+    const v = SK.utils.getVideo();
+    const container =
+      v?.closest('[data-e2e="recommend-list-item-container"], [class*="DivItemContainer"], [class*="DivVideoItemContainer"]');
+    if (container) {
+      const aTag = container.querySelector('a[href*="/video/"], a[href*="/v/"]');
+      if (aTag) return aTag.href;
+    }
+
+    // Detail page fallback
+    if (/\/video\/\d+/.test(location.pathname)) return location.href.split('?')[0];
+
     return location.href.split('?')[0];
   }
 
