@@ -43,6 +43,7 @@
         "src/modules/audio/audio-engine.js",
         "src/modules/video/video-tools.js",
         "src/modules/download/download-manager.js",
+        "src/modules/download/download-button.js",
         "src/modules/productivity/watch-tracker.js",
         "src/content/main.js",
         "src/content/message-router.js"

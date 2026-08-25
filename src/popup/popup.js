@@ -226,24 +226,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.addEventListener('change', apply);
   });
 
-  // --- Screenshot ---
-  const btnSs = $('btn-screenshot');
-  if (btnSs) btnSs.addEventListener('click', () => {
-    sendToTab({ type: 'SK_SHOT' }, undefined);
-    toast('Đang chụp khung hình...');
-  });
-
-  // --- Download current video (MP4/MP3) via content script ---
-  const btnMp4 = $('btn-dl-mp4');
-  if (btnMp4) btnMp4.addEventListener('click', () => {
-    toast('Đang giải mã link...');
-    sendToTab({ type: 'SK_DL', format: 'mp4' }, () => {});
-  });
-  const btnMp3 = $('btn-dl-mp3');
-  if (btnMp3) btnMp3.addEventListener('click', () => {
-    toast('Đang giải mã link...');
-    sendToTab({ type: 'SK_DL', format: 'mp3' }, () => {});
-  });
+  // --- Screenshot & download buttons moved to in-page download button ---
+  // (Popup no longer hosts MP4/MP3/screenshot actions; they live next to
+  //  each video's three-dot menu via SK.downloadButton module)
 
   // --- Watch history ---
   const historyContent = $('history-content');
