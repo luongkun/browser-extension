@@ -233,6 +233,114 @@ document.addEventListener('DOMContentLoaded', () => {
     toast('Đang chụp khung hình...');
   });
 
+  // --- Download current video (MP4/MP3) via content script ---
+  const btnMp4 = $('btn-dl-mp4');
+  if (btnMp4) btnMp4.addEventListener('click', () => {
+    toast('Đang giải mã link...');
+    sendToTab({ type: 'SK_DL', format: 'mp4' }, () => {});
+  });
+  const btnMp3 = $('btn-dl-mp3');
+  if (btnMp3) btnMp3.addEventListener('click', () => {
+    toast('Đang giải mã link...');
+    sendToTab({ type: 'SK_DL', format: 'mp3' }, () => {});
+  });
+
+  // --- Watch history ---
+  const historyContent = $('history-content');
+  const historyToggleRow = $('history-toggle-row');
+  const historyArrow = $('history-arrow');
+
+  function timeAgo(ts) {
+    const diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 60) return 'vừa xong';
+    if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
+    return `${Math.floor(diff / 86400)} ngày trước`;
+  }
+
+  const PLATFORM_ICON = { tiktok: '🎵', youtube: '▶️', instagram: '📷' };
+
+  async function renderHistory() {
+    if (!historyContent) return;
+    try {
+      const data = await chrome.storage.local.get('history');
+      const history = data.history || [];
+      if (!history.length) {
+        historyContent.innerHTML =
+          '<div style="padding:16px; text-align:center; color:var(--mt); font-size:11px;">Chưa có video nào được ghi lại.<br>Hãy mở TikTok/Shorts/Reels và xem vài video!</div>';
+        return;
+      }
+      const shown = history.slice(0, 10);
+      historyContent.innerHTML = shown.map((h, i) => `
+        <div class="hist-item" data-idx="${i}">
+          ${h.thumb
+            ? `<img src="${h.thumb}" alt="">`
+            : `<div class="hist-thumb-fallback">${PLATFORM_ICON[h.platform] || '🎬'}</div>`}
+          <div class="hist-info">
+            <span class="hist-title">${escapeHtml(h.title || h.url)}</span>
+            <span class="hist-meta">${PLATFORM_ICON[h.platform] || ''} ${timeAgo(h.at)}</span>
+          </div>
+          <button class="hist-del" data-id="${escapeHtml(h.id)}" title="Xóa mục này">×</button>
+        </div>`).join('');
+
+      // click item -> open video
+      historyContent.querySelectorAll('.hist-item').forEach((el) => {
+        el.addEventListener('click', (e) => {
+          if (e.target.classList.contains('hist-del')) return;
+          const item = shown[+el.dataset.idx];
+          if (item?.url) chrome.tabs.create({ url: item.url });
+        });
+      });
+
+      // delete single item
+      historyContent.querySelectorAll('.hist-del').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-id');
+          const cur = await chrome.storage.local.get('history');
+          const next = (cur.history || []).filter((h) => String(h.id) !== id);
+          await chrome.storage.local.set({ history: next });
+          renderHistory();
+          toast('Đã xóa');
+        });
+      });
+    } catch {
+      historyContent.innerHTML = '<div style="padding:12px;color:var(--mt);font-size:11px;">Không tải được lịch sử.</div>';
+    }
+  }
+
+  if (historyToggleRow && historyContent && historyArrow) {
+    chrome.storage.local.get({ historyExpanded: false }, (res) => {
+      historyContent.style.display = res.historyExpanded ? 'block' : 'none';
+      historyArrow.style.transform = res.historyExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+    });
+
+    historyToggleRow.addEventListener('click', async () => {
+      const isOpen = historyContent.style.display !== 'none';
+      const next = !isOpen;
+      historyContent.style.display = next ? 'block' : 'none';
+      historyArrow.style.transform = next ? 'rotate(180deg)' : 'rotate(0deg)';
+      await chrome.storage.local.set({ historyExpanded: next });
+      if (next) renderHistory();
+    });
+  }
+
+  const btnClearHist = $('btn-clear-history');
+  if (btnClearHist) {
+    btnClearHist.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('Xóa toàn bộ lịch sử xem?')) return;
+      await chrome.storage.local.set({ history: [] });
+      renderHistory();
+      toast('Đã xóa toàn bộ lịch sử');
+    });
+  }
+
+  // render history immediately on open if expanded
+  chrome.storage.local.get({ historyExpanded: false }, (res) => {
+    if (res.historyExpanded) renderHistory();
+  });
+
   // --- Download from URL ---
   const urlGo = $('f-url-go');
   const urlEl = $('f-url');
@@ -240,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const dlResult = $('dl-result');
 
   function escapeHtml(s) {
-    return String(s || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   function fmtSize(b) {

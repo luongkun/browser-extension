@@ -11,7 +11,6 @@ window.SK = window.SK || {};
   // Apply everything that runs inside the page
   SK.audioEngine.applyAll(settings);
   SK.videoTools.applyAll(settings);
-  SK.downloadManager.injectToolbar();
   SK.watchTracker.startTracking();
 
   // ---- Keyboard shortcuts (act on current video) ----
@@ -68,3 +67,4 @@ window.SK = window.SK || {};
 
   SK.utils.log('Ready ✔');
 })();
+

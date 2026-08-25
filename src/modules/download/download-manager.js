@@ -129,38 +129,5 @@ SK.downloadManager = (() => {
     }, 'image/png');
   }
 
-  // ---- Inline toolbar injected on each video ----
-  function injectToolbar() {
-    if (toolbar || !SK.platform.current()) return;
-    toolbar = document.createElement('div');
-    toolbar.id = 'sk-toolbar';
-    toolbar.innerHTML = `
-      <button data-act="dl-mp4" title="Tải MP4">⬇ MP4</button>
-      <button data-act="dl-mp3" title="Tải MP3">🎵 MP3</button>
-      <button data-act="shot" title="Chụp khung hình">📷</button>
-      <button data-act="rot" title="Xoay video">🔄</button>
-      <button data-act="zoom" title="Thu phóng thông minh">🔍</button>
-    `;
-    toolbar.style.cssText = `
-      position:fixed;left:12px;bottom:80px;z-index:2147483647;display:flex;gap:4px;
-      background:#1a1a1a;border-radius:10px;padding:6px;box-shadow:0 2px 12px rgba(0,0,0,.5);
-      font-family:system-ui;font-size:12px;
-    `;
-    toolbar.querySelectorAll('button').forEach((b) => {
-      b.style.cssText =
-        'background:#2c2c2c;color:#fff;border:none;border-radius:6px;padding:6px 8px;cursor:pointer';
-      b.addEventListener('click', async () => {
-        switch (b.dataset.act) {
-          case 'dl-mp4': await downloadCurrent('mp4'); break;
-          case 'dl-mp3': await downloadCurrent('mp3'); break;
-          case 'shot': screenshot(); break;
-          case 'rot': SK.videoTools.rotate(); break;
-          case 'zoom': SK.videoTools.toggleZoom(); break;
-        }
-      });
-    });
-    document.body.appendChild(toolbar);
-  }
-
-  return { downloadCurrent, resolve, getCanonicalUrl, screenshot, injectToolbar };
+  return { downloadCurrent, resolve, getCanonicalUrl, screenshot };
 })();

@@ -12,6 +12,21 @@ SK.watchTracker = (() => {
     return new Date().toISOString().slice(0, 10);
   }
 
+  /** Grab a small thumbnail from the playing video (may fail silently) */
+  function captureThumb() {
+    try {
+      const v = SK.utils.getVideo();
+      if (!v || !v.videoWidth) return null;
+      const c = document.createElement('canvas');
+      c.width = 120;
+      c.height = Math.round((v.videoHeight / v.videoWidth) * 120) || 160;
+      c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', 0.6);
+    } catch (_) {
+      return null; // cross-origin taint or no frame yet
+    }
+  }
+
   async function recordTick(platform, videoId, seconds) {
     // --- stats per day ---
     const stats = (await SK.storage.getLocal('stats', {})) || {};
@@ -32,8 +47,9 @@ SK.watchTracker = (() => {
       history.unshift({
         id: videoId,
         platform,
-        url: location.href.split('?')[0],
+        url: SK.downloadManager.getCanonicalUrl(),
         title: document.title.slice(0, 120),
+        thumb: captureThumb(),
         at: Date.now(),
       });
       await SK.storage.setLocal('history', history.slice(0, 200));
@@ -54,7 +70,7 @@ SK.watchTracker = (() => {
       if (v) v.pause();
     } else {
       showToast(
-        `You've reached your daily limit (${dayStat.videos} videos, ${Math.round(dayStat.seconds / 60)} min). Maybe take a break? 🙂`
+        `Bạn đã đạt giới hạn hôm nay (${dayStat.videos} video, ${Math.round(dayStat.seconds / 60)} phút). Nghỉ một chút nhé! 🙂`
       );
     }
   }
@@ -67,7 +83,7 @@ SK.watchTracker = (() => {
       'padding:14px 18px;border-radius:10px;font-family:system-ui;font-size:14px;' +
       'box-shadow:0 4px 16px rgba(0,0,0,.4);max-width:340px';
     const btn = document.createElement('button');
-    btn.textContent = 'Dismiss';
+    btn.textContent = 'Đóng';
     btn.style.cssText = 'margin-left:10px;background:#fff;color:#fe2c55;border:none;border-radius:6px;padding:4px 10px;cursor:pointer';
     btn.onclick = () => t.remove();
     t.appendChild(btn);
@@ -81,10 +97,10 @@ SK.watchTracker = (() => {
     o.id = 'sk-block-overlay';
     o.innerHTML = `
       <div style="text-align:center">
-        <h2 style="font-size:28px;margin-bottom:12px">⏰ Daily limit reached</h2>
-        <p style="opacity:.85">You've hit the limit you set for yourself. Come back tomorrow!</p>
+        <h2 style="font-size:28px;margin-bottom:12px">⏰ Đã đạt giới hạn hôm nay</h2>
+        <p style="opacity:.85">Bạn đã xem đủ mức giới hạn tự đặt. Hẹn gặp lại ngày mai!</p>
         <button id="sk-unblock" style="margin-top:18px;padding:10px 22px;border:none;border-radius:8px;
-          background:#fff;color:#111;font-size:15px;cursor:pointer">I understand — clear for now</button>
+          background:#fff;color:#111;font-size:15px;cursor:pointer">Tôi hiểu — mở khóa tạm thời</button>
       </div>`;
     o.style.cssText =
       'position:fixed;inset:0;z-index:2147483647;background:rgba(10,10,10,.96);color:#fff;' +

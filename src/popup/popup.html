@@ -142,10 +142,20 @@
     <div class="group">
       <p class="gtitle">Hành động</p>
       <div class="row" style="flex-direction:column; align-items:flex-start; padding-bottom: 12px; gap:8px;">
-        <button class="btn-action" id="btn-screenshot">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-          Chụp khung hình hiện tại
-        </button>
+        <div style="display:flex; width:100%; gap:6px;">
+          <button class="btn-action" id="btn-dl-mp4" style="flex:1;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Tải MP4
+          </button>
+          <button class="btn-action" id="btn-dl-mp3" style="flex:1;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+            Tải MP3
+          </button>
+          <button class="btn-action" id="btn-screenshot" style="flex:1;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            Chụp hình
+          </button>
+        </div>
 
         <div style="width:100%; border-top:0.5px solid var(--bd); margin:4px 0;"></div>
 
@@ -196,6 +206,18 @@
         </div>
       </div>
     </div>
+    <!-- ============ LỊCH SỬ XEM ============ -->
+    <div class="group">
+      <div class="row hdr-row" style="cursor: pointer;" id="history-toggle-row">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <svg id="history-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s; transform: rotate(180deg);"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          <p class="gtitle" style="padding:0; margin:0">🕘 Lịch sử xem</p>
+        </div>
+        <button class="theme-btn" id="btn-clear-history" title="Xóa toàn bộ lịch sử" onclick="event.stopPropagation();" style="font-size:13px;">🗑</button>
+      </div>
+      <div id="history-content" style="display:none;"></div>
+    </div>
+
     <!-- ============ PHÍM TẮT & THÔNG TIN ============ -->
     <div class="group">
       <p class="gtitle">⌨ Phím tắt trên video</p>
