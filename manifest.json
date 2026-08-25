@@ -10,7 +10,14 @@
   "host_permissions": [
     "*://*.tiktok.com/*",
     "*://*.youtube.com/*",
-    "*://*.instagram.com/*"
+    "*://*.instagram.com/*",
+    "https://www.tikwm.com/*",
+    "https://douyin.wtf/*",
+    "https://tiklydown.eu.org/*",
+    "https://pipedapi.kavin.rocks/*",
+    "https://pipedapi.adminforge.de/*",
+    "https://inv.nadeko.net/*",
+    "https://yewtu.be/*"
   ],
   "background": {
     "service_worker": "src/background/service-worker.js"

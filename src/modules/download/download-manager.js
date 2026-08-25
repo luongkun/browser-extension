@@ -1,49 +1,80 @@
 // ============================================================
 // Download Manager — inline button, URL box, multi-provider
-// failover (tikwm -> douyin.wtf -> tiklydown), MP4 + MP3
+// failover, MP4 + MP3
+// NOTE: All provider fetches go through the service worker to
+// avoid CORS restrictions in the page context.
 // ============================================================
 window.SK = window.SK || {};
 
 SK.downloadManager = (() => {
-  const PROVIDERS = [
-    (url) => `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`,
-    (url) => `https://douyin.wtf/api/hybrid/video_data?url=${encodeURIComponent(url)}`,
-    (url) => `https://tiklydown.eu.org/api/download?url=${encodeURIComponent(url)}`,
-  ];
-
   let toolbar = null;
 
-  /** Resolve a page URL to a direct media URL via provider failover */
-  async function resolve(pageUrl, format = 'mp4') {
-    for (const build of PROVIDERS) {
-      try {
-        const res = await fetch(build(pageUrl), { credentials: 'omit' });
-        if (!res.ok) continue;
-        const data = await res.json();
+  /**
+   * Build a canonical page URL for the current video.
+   * On TikTok feed pages (/foryou), location.href has no video id,
+   * so we extract it from DOM anchors or the video element.
+   */
+  function getCanonicalUrl() {
+    const platform = SK.platform.current();
+    const id = platform?.getVideoId?.() || '';
 
-        // tikwm shape
-        const play =
-          data?.data?.play ||
-          data?.data?.hdplay ||
-          // tiklydown shape
-          data?.video?.noWatermark ||
-          data?.video?.hd ||
-          // douyin.wtf shape
-          data?.video_data?.play_addr?.url_list?.[0];
-
-        const music = data?.data?.music || data?.music;
-        if (!play) continue;
-
-        return {
-          video: play.startsWith('//') ? `https:${play}` : play,
-          audio: music,
-          final: format === 'mp3' && music ? (music.startsWith('//') ? `https:${music}` : music) : (play.startsWith('//') ? `https:${play}` : play),
-        };
-      } catch (_) {
-        /* try next provider */
+    // TikTok: numeric video id found in path -> build clean URL
+    if (platform?.id === 'tiktok') {
+      if (/^\d+$/.test(id)) return `https://www.tiktok.com/@x/video/${id}`;
+      // Feed page: try to read the active slide's link
+      const link =
+        document.querySelector('[data-e2e="feed-video"] a[href*="/video/"]') ||
+        document.querySelector('a[href*="/video/"][data-e2e]') ||
+        [...document.querySelectorAll('a[href*="/video/"]')]
+          .find((a) => a.closest('[data-e2e="feed-active-video"], .css-1sbo6h3-DivWrapper, [class*="DivItemContainer"]'));
+      if (link) {
+        const m = link.href.match(/\/video\/(\d+)/);
+        if (m) return `https://www.tiktok.com/@x/video/${m[1]}`;
       }
+      // Fallback: any /video/ link on page
+      const anyLink = document.querySelector('a[href*="/video/"]');
+      if (anyLink) {
+        const m = anyLink.href.match(/\/video\/(\d+)/);
+        if (m) return `https://www.tiktok.com/@x/video/${m[1]}`;
+      }
+      // Last resort: current URL (works on detail pages)
+      return location.href.split('?')[0];
     }
-    return null;
+
+    // YouTube Shorts: id is enough for providers via watch URL
+    if (platform?.id === 'youtube' && !id.startsWith('/')) {
+      return `https://www.youtube.com/watch?v=${id}`;
+    }
+
+    // Instagram Reels
+    if (platform?.id === 'instagram') {
+      return location.href.split('?')[0];
+    }
+
+    return location.href.split('?')[0];
+  }
+
+  /** Ask the service worker to resolve a page URL via provider failover */
+  async function resolve(pageUrl, format = 'mp4') {
+    return new Promise((resolvePromise) => {
+      chrome.runtime.sendMessage(
+        { type: 'RESOLVE_URL', url: pageUrl },
+        (res) => {
+          if (chrome.runtime.lastError || !res || !res.ok || !res.data?.video) {
+            SK.utils.log('Resolve failed:', chrome.runtime.lastError?.message || res);
+            resolvePromise(null);
+            return;
+          }
+          const d = res.data;
+          const wantAudio = format === 'mp3';
+          resolvePromise({
+            video: d.video,
+            audio: d.audio,
+            final: wantAudio && d.audio ? d.audio : d.video,
+          });
+        }
+      );
+    });
   }
 
   /** Trigger browser download via service worker */
@@ -54,16 +85,33 @@ SK.downloadManager = (() => {
   /** Download current video (used by inline button + keyboard) */
   async function downloadCurrent(format = 'mp4') {
     const platform = SK.platform.current();
-    if (!platform) return SK.utils.log('Unknown platform');
-    const pageUrl = location.href.split('?')[0];
+    if (!platform) return;
+    const pageUrl = getCanonicalUrl();
     SK.utils.log(`Resolving ${pageUrl} (${format})...`);
+    notify('Đang giải mã link…');
     const media = await resolve(pageUrl, format);
     if (!media) {
-      alert('ShortKit: could not resolve this video. Try the URL box in the popup.');
+      notify('Không giải mã được video này. Thử dán link vào popup nhé.');
       return;
     }
-    const id = platform.getVideoId();
+    const id = platform.getVideoId().replace(/[^\w-]/g, '').slice(-16) || Date.now();
     save(media.final, `shortkit-${platform.id}-${id}.${format}`);
+    notify(`Đang tải ${format.toUpperCase()}…`);
+  }
+
+  /** Non-blocking Vietnamese toast on page (replaces alert) */
+  function notify(msg) {
+    const t = document.getElementById('sk-toast');
+    if (t) t.remove();
+    const el = document.createElement('div');
+    el.id = 'sk-toast';
+    el.textContent = msg;
+    el.style.cssText =
+      'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:2147483647;' +
+      'background:#fe2c55;color:#fff;padding:10px 20px;border-radius:20px;' +
+      'font-family:system-ui;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.35);white-space:nowrap';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
   }
 
   /** Screenshot: capture current frame as PNG */
@@ -87,11 +135,11 @@ SK.downloadManager = (() => {
     toolbar = document.createElement('div');
     toolbar.id = 'sk-toolbar';
     toolbar.innerHTML = `
-      <button data-act="dl-mp4" title="Download MP4">⬇ MP4</button>
-      <button data-act="dl-mp3" title="Download MP3">🎵 MP3</button>
-      <button data-act="shot" title="Screenshot frame">📷</button>
-      <button data-act="rot" title="Rotate video">🔄</button>
-      <button data-act="zoom" title="Smart zoom (scroll to adjust)">🔍</button>
+      <button data-act="dl-mp4" title="Tải MP4">⬇ MP4</button>
+      <button data-act="dl-mp3" title="Tải MP3">🎵 MP3</button>
+      <button data-act="shot" title="Chụp khung hình">📷</button>
+      <button data-act="rot" title="Xoay video">🔄</button>
+      <button data-act="zoom" title="Thu phóng thông minh">🔍</button>
     `;
     toolbar.style.cssText = `
       position:fixed;left:12px;bottom:80px;z-index:2147483647;display:flex;gap:4px;
@@ -114,13 +162,5 @@ SK.downloadManager = (() => {
     document.body.appendChild(toolbar);
   }
 
-  /** Download from arbitrary pasted URL (called from popup) */
-  async function downloadFromUrl(pageUrl, format) {
-    const media = await resolve(pageUrl, format);
-    if (!media) throw new Error('Could not resolve URL');
-    save(media.final, `shortkit-${Date.now()}.${format}`);
-    return true;
-  }
-
-  return { downloadCurrent, downloadFromUrl, screenshot, injectToolbar };
+  return { downloadCurrent, resolve, getCanonicalUrl, screenshot, injectToolbar };
 })();
