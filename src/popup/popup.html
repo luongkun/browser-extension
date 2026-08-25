@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    :root {
+      --bg: #161616; --card: #222; --accent: #fe2c55; --text: #f1f1f1;
+      --muted: #999; --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body { width: 340px; background: var(--bg); color: var(--text);
+           font-family: system-ui, -apple-system, sans-serif; font-size: 13px; }
+    header { display: flex; align-items: center; gap: 8px; padding: 14px;
+             background: linear-gradient(135deg, #fe2c55, #6929c4); }
+    header h1 { font-size: 15px; font-weight: 700; }
+    header span { opacity: .85; font-size: 11px; }
+    main { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    section { background: var(--card); border-radius: var(--radius); padding: 12px; }
+    h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+         color: var(--muted); margin-bottom: 8px; }
+    .row { display: flex; justify-content: space-between; align-items: center;
+           padding: 5px 0; }
+    .toggle { position: relative; width: 36px; height: 20px; appearance: none;
+              background: #444; border-radius: 20px; cursor: pointer; transition: .2s; }
+    .toggle:checked { background: var(--accent); }
+    .toggle::after { content: ''; position: absolute; top: 2px; left: 2px;
+              width: 16px; height: 16px; background: #fff; border-radius: 50%;
+              transition: .2s; }
+    .toggle:checked::after { left: 18px; }
+    select, input[type=number], input[type=text] {
+      background: #111; color: var(--text); border: 1px solid #333;
+      border-radius: 6px; padding: 5px 8px; width: 130px; }
+    .btns { display: flex; gap: 6px; margin-top: 6px; }
+    button { flex: 1; padding: 8px; border: none; border-radius: 6px;
+             background: var(--accent); color: #fff; cursor: pointer;
+             font-weight: 600; font-size: 12px; }
+    button.secondary { background: #333; }
+    #status { text-align: center; color: var(--muted); font-size: 11px;
+              min-height: 14px; margin-top: 4px; }
+    footer { text-align: center; color: var(--muted); font-size: 10px;
+             padding: 8px; border-top: 1px solid #2a2a2a; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎬 ShortKit Multi</h1>
+    <span id="platform">…</span>
+  </header>
+
+  <main>
+    <!-- Audio -->
+    <section>
+      <h2>🔊 Audio</h2>
+      <div class="row"><label>Equalizer</label><input type="checkbox" class="toggle" id="eqEnabled" /></div>
+      <div class="row">
+        <label>Preset</label>
+        <select id="eqPreset">
+          <option value="flat">Flat</option><option value="bassBoost">Bass Boost</option>
+          <option value="treble">Treble</option><option value="vocal">Vocal</option>
+          <option value="pop">Pop</option><option value="rock">Rock</option>
+          <option value="electronic">Electronic</option><option value="jazz">Jazz</option>
+          <option value="classical">Classical</option><option value="dance">Dance</option>
+        </select>
+      </div>
+      <div class="row"><label>Volume Normalizer</label><input type="checkbox" class="toggle" id="normalizer" /></div>
+      <div class="row"><label>360° Audio (8D)</label><input type="checkbox" class="toggle" id="spatial8d" /></div>
+      <div class="row">
+        <label>Speed <b id="speedVal">1×</b></label>
+        <input type="range" id="speed" min="0.25" max="4" step="0.25" value="1" style="width:130px" />
+      </div>
+    </section>
+
+    <!-- Video -->
+    <section>
+      <h2>📺 Video</h2>
+      <div class="row"><label>Background Play</label><input type="checkbox" class="toggle" id="backgroundPlay" /></div>
+      <div class="row"><label>Smart Auto-Pause</label><input type="checkbox" class="toggle" id="autoPause" /></div>
+      <div class="row"><label>Clean Mode (hide UI)</label><input type="checkbox" class="toggle" id="cleanMode" /></div>
+    </section>
+
+    <!-- Productivity -->
+    <section>
+      <h2>⏱ Daily Limit</h2>
+      <div class="row">
+        <label>Max videos / day</label>
+        <input type="number" id="dailyLimitVideos" min="0" value="0" />
+      </div>
+      <div class="row">
+        <label>Max minutes / day</label>
+        <input type="number" id="dailyLimitMinutes" min="0" value="0" />
+      </div>
+      <div class="row">
+        <label>When reached</label>
+        <select id="limitMode">
+          <option value="remind">Remind me</option>
+          <option value="block">Block page</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Quick actions -->
+    <section>
+      <h2>⚡ Actions on current video</h2>
+      <div class="btns">
+        <button id="btnMp4">⬇ MP4</button>
+        <button id="btnMp3">🎵 MP3</button>
+        <button id="btnShot" class="secondary">📷 Frame</button>
+      </div>
+      <div class="btns">
+        <button id="btnUrl" class="secondary">📥 Download from URL…</button>
+      </div>
+      <input type="text" id="urlBox" placeholder="Paste TikTok/Shorts/Reels link…" style="display:none;width:100%;margin-top:6px" />
+      <div id="status"></div>
+    </section>
+  </main>
+
+  <footer>100% local · zero tracking · v0.1.0</footer>
+  <script src="popup.js"></script>
+</body>
+</html>

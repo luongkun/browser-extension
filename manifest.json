@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "ShortKit Multi — TikTok, Shorts & Reels Toolkit",
+  "version": "0.1.0",
+  "description": "Audio/video enhancement, download tools and productivity features for TikTok, YouTube Shorts and Instagram Reels. 100% local, zero tracking.",
+  "permissions": [
+    "storage",
+    "downloads"
+  ],
+  "host_permissions": [
+    "*://*.tiktok.com/*",
+    "*://*.youtube.com/*",
+    "*://*.instagram.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.tiktok.com/*", "*://*.youtube.com/*", "*://*.instagram.com/*"],
+      "js": [
+        "src/core/utils.js",
+        "src/core/storage.js",
+        "src/modules/platforms/platform.js",
+        "src/modules/platforms/tiktok.js",
+        "src/modules/platforms/youtube.js",
+        "src/modules/platforms/instagram.js",
+        "src/modules/audio/audio-engine.js",
+        "src/modules/video/video-tools.js",
+        "src/modules/download/download-manager.js",
+        "src/modules/productivity/watch-tracker.js",
+        "src/content/main.js",
+        "src/content/message-router.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  }
+}
