@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ShortKit Multi — TikTok, Shorts & Reels Toolkit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Audio/video enhancement, download tools and productivity features for TikTok, YouTube Shorts and Instagram Reels. 100% local, zero tracking.",
   "permissions": [
     "storage",

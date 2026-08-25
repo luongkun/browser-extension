@@ -40,6 +40,22 @@ window.SK = window.SK || {};
     }
   });
 
+  // ---- Direct messages from popup (UPDATE_SETTINGS / PING) ----
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === 'PING') {
+      sendResponse({ ok: true });
+      return;
+    }
+    if (msg.type === 'UPDATE_SETTINGS' && msg.settings) {
+      SK.storage.saveSettings(msg.settings).then((next) => {
+        SK.audioEngine.applyAll(next);
+        SK.videoTools.applyAll(next);
+        sendResponse({ ok: true });
+      });
+      return true;
+    }
+  });
+
   // ---- Handle SPA navigations (feed swipes change video element) ----
   SK.utils.onVideoReady((video) => {
     // re-assert speed on new videos
