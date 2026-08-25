@@ -1,22 +1,89 @@
 // ============================================================
-// TikTok adapter
+// TikTok adapter — improved to detect the currently
+// visible/playing video on feed pages (SPA navigation)
 // ============================================================
 window.SK = window.SK || {};
 SK.platform.register({
   id: 'tiktok',
 
+  /** Return the <video> element that is currently playing/visible */
   getVideo() {
-    return (
-      document.querySelector('video.html-main-media-player') ||
-      document.querySelector('#app-container video') ||
-      document.querySelector('video')
-    );
+    // Primary: the main feed video player
+    const main = document.querySelector('video.html-main-media-player');
+    if (main && !main.paused) return main;
+
+    // Feed: the video inside the active/visible feed container
+    const feedContainers = [
+      '[data-e2e="feed-video"]',       // foryou/following
+      '[data-e2e="video-player"]',     // generic
+      '.DivItemContainer',             // common wrapper class
+      '[class*="DivItemContainer"]',
+      '[data-e2e="recommend-video"]',  // related videos
+    ];
+    for (const sel of feedContainers) {
+      const container = document.querySelector(sel);
+      if (container) {
+        const v = container.querySelector('video');
+        if (v && (v.currentTime > 0 || !v.paused || v.readyState >= 2)) return v;
+      }
+    }
+
+    // Fallback: first video that's not a tiny preview
+    const all = document.querySelectorAll('video');
+    for (const v of all) {
+      if (v.videoWidth >= 200 && v.videoHeight >= 200 && !v.paused) return v;
+    }
+
+    return main || document.querySelector('video');
   },
 
+  /** Extract video ID from the currently visible video element's context */
   getVideoId() {
-    const m = location.pathname.match(/\/video\/(\d+)/);
-    if (m) return m[1];
-    return location.pathname; // /@user/live, feed paths
+    // Detail page: /video/123456789
+    const pathMatch = location.pathname.match(/\/video\/(\d+)/);
+    if (pathMatch) return pathMatch[1];
+
+    // Feed page: find the active video's link
+    const v = this.getVideo();
+    if (v) {
+      // Try parent link
+      const link = v.closest('a[href*="/video/"]');
+      if (link) {
+        const m = link.href.match(/\/video\/(\d+)/);
+        if (m) return m[1];
+      }
+
+      // Try data attributes on video or wrapper
+      const dataId = v.dataset?.videoId || v.getAttribute('data-video-id');
+      if (dataId && /^\d+$/.test(dataId)) return dataId;
+
+      // Check wrapper elements
+      let el = v.parentElement;
+      for (let i = 0; i < 4 && el; i++, el = el?.parentElement) {
+        const id = el.dataset?.videoId || el.getAttribute('data-video-id');
+        if (id && /^\d+$/.test(id)) return id;
+        const a = el.querySelector('a[href*="/video/"]');
+        if (a) {
+          const m = a.href.match(/\/video\/(\d+)/);
+          if (m) return m[1];
+        }
+      }
+    }
+
+    // Last resort: any visible /video/ link on screen
+    const links = document.querySelectorAll('a[href*="/video/"]');
+    for (const a of links) {
+      const rect = a.getBoundingClientRect();
+      if (rect.width > 50 && rect.height > 50 &&
+          rect.top >= 0 && rect.left >= 0 &&
+          rect.bottom <= window.innerHeight && rect.right <= window.innerWidth) {
+        const m = a.href.match(/\/video\/(\d+)/);
+        if (m) return m[1];
+      }
+    }
+
+    // Nothing found
+    return '';
   },
 
   isShortFeed() {
@@ -27,12 +94,10 @@ SK.platform.register({
     );
   },
 
-  getDownloadUrl() {
-    // Public web API used by several open-source downloaders
-    const id = this.getVideoId().match(/^\d+$/)
-      ? this.getVideoId()
-      : null;
-    if (!id) return null;
-    return `https://www.tikwm.com/api/?url=https://www.tiktok.com/video/${id}`;
+  /** Build canonical URL for the currently visible video */
+  getCanonicalUrl() {
+    const id = this.getVideoId();
+    if (/^\d+$/.test(id)) return `https://www.tiktok.com/@x/video/${id}`;
+    return location.href.split('?')[0];
   },
 });

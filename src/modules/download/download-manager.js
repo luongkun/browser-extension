@@ -1,56 +1,34 @@
 // ============================================================
-// Download Manager — inline button, URL box, multi-provider
-// failover, MP4 + MP3
+// Download Manager — detects the currently PLAYING video,
+// resolves via direct src first, then provider failover
 // NOTE: All provider fetches go through the service worker to
 // avoid CORS restrictions in the page context.
 // ============================================================
 window.SK = window.SK || {};
 
 SK.downloadManager = (() => {
-  let toolbar = null;
 
   /**
-   * Build a canonical page URL for the current video.
-   * On TikTok feed pages (/foryou), location.href has no video id,
-   * so we extract it from DOM anchors or the video element.
+   * Try to grab a downloadable URL straight from the active <video>
+   * element (works when platform serves plain mp4 to the player).
+   */
+  function extractDirectSrc() {
+    const v = SK.utils.getVideo();
+    if (!v) return null;
+    const src = v.currentSrc || v.src;
+    if (src && /^https?:/.test(src) && !src.startsWith('blob:')) {
+      return src;
+    }
+    return null;
+  }
+
+  /**
+   * Build a canonical page URL for the currently visible video.
+   * Delegates to platform adapters which detect feed position.
    */
   function getCanonicalUrl() {
     const platform = SK.platform.current();
-    const id = platform?.getVideoId?.() || '';
-
-    // TikTok: numeric video id found in path -> build clean URL
-    if (platform?.id === 'tiktok') {
-      if (/^\d+$/.test(id)) return `https://www.tiktok.com/@x/video/${id}`;
-      // Feed page: try to read the active slide's link
-      const link =
-        document.querySelector('[data-e2e="feed-video"] a[href*="/video/"]') ||
-        document.querySelector('a[href*="/video/"][data-e2e]') ||
-        [...document.querySelectorAll('a[href*="/video/"]')]
-          .find((a) => a.closest('[data-e2e="feed-active-video"], .css-1sbo6h3-DivWrapper, [class*="DivItemContainer"]'));
-      if (link) {
-        const m = link.href.match(/\/video\/(\d+)/);
-        if (m) return `https://www.tiktok.com/@x/video/${m[1]}`;
-      }
-      // Fallback: any /video/ link on page
-      const anyLink = document.querySelector('a[href*="/video/"]');
-      if (anyLink) {
-        const m = anyLink.href.match(/\/video\/(\d+)/);
-        if (m) return `https://www.tiktok.com/@x/video/${m[1]}`;
-      }
-      // Last resort: current URL (works on detail pages)
-      return location.href.split('?')[0];
-    }
-
-    // YouTube Shorts: id is enough for providers via watch URL
-    if (platform?.id === 'youtube' && !id.startsWith('/')) {
-      return `https://www.youtube.com/watch?v=${id}`;
-    }
-
-    // Instagram Reels
-    if (platform?.id === 'instagram') {
-      return location.href.split('?')[0];
-    }
-
+    if (platform?.getCanonicalUrl) return platform.getCanonicalUrl();
     return location.href.split('?')[0];
   }
 
@@ -82,24 +60,40 @@ SK.downloadManager = (() => {
     chrome.runtime.sendMessage({ type: 'SK_DOWNLOAD', url, filename });
   }
 
-  /** Download current video (used by inline button + keyboard) */
+  /** Download the currently playing video */
   async function downloadCurrent(format = 'mp4') {
     const platform = SK.platform.current();
-    if (!platform) return;
+    if (!platform) {
+      notify('Không nhận diện được nền tảng.');
+      return;
+    }
+
+    // 1. Direct extraction from the playing <video> element (no API needed)
+    const direct = extractDirectSrc();
+    if (direct && format === 'mp4') {
+      SK.utils.log('Using direct video src');
+      save(direct, `shortkit-${platform.id}-${Date.now()}.mp4`);
+      notify('Đang tải MP4…');
+      return;
+    }
+
+    // 2. Resolve via canonical URL + providers
     const pageUrl = getCanonicalUrl();
     SK.utils.log(`Resolving ${pageUrl} (${format})...`);
     notify('Đang giải mã link…');
+
     const media = await resolve(pageUrl, format);
     if (!media) {
-      notify('Không giải mã được video này. Thử dán link vào popup nhé.');
+      notify('Không giải mã được. Thử copy link từ thanh địa chỉ dán vào popup.');
       return;
     }
-    const id = platform.getVideoId().replace(/[^\w-]/g, '').slice(-16) || Date.now();
-    save(media.final, `shortkit-${platform.id}-${id}.${format}`);
+
+    const vidId = String(platform.getVideoId() || '').replace(/[^\w-]/g, '').slice(-16) || Date.now();
+    save(media.final, `shortkit-${platform.id}-${vidId}.${format}`);
     notify(`Đang tải ${format.toUpperCase()}…`);
   }
 
-  /** Non-blocking Vietnamese toast on page (replaces alert) */
+  /** Non-blocking Vietnamese toast on page */
   function notify(msg) {
     const t = document.getElementById('sk-toast');
     if (t) t.remove();
@@ -114,10 +108,13 @@ SK.downloadManager = (() => {
     setTimeout(() => el.remove(), 3500);
   }
 
-  /** Screenshot: capture current frame as PNG */
+  /** Screenshot: capture frame from the currently VISIBLE video */
   function screenshot() {
     const v = SK.utils.getVideo();
-    if (!v) return;
+    if (!v || !v.videoWidth) {
+      notify('Không tìm thấy video đang phát.');
+      return;
+    }
     const canvas = document.createElement('canvas');
     canvas.width = v.videoWidth;
     canvas.height = v.videoHeight;
@@ -125,6 +122,7 @@ SK.downloadManager = (() => {
     canvas.toBlob((blob) => {
       const url = URL.createObjectURL(blob);
       save(url, `shortkit-frame-${Date.now()}.png`);
+      notify('Đã chụp khung hình ✔');
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     }, 'image/png');
   }

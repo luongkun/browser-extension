@@ -4,13 +4,40 @@
 const SK = (window.SK = window.SK || {});
 
 SK.utils = {
-  /** Query a single video element, platform-agnostic */
+  /**
+   * Pick the video element currently visible/playing.
+   * SPA feeds (TikTok/Shorts/Reels) render multiple <video> nodes;
+   * the active one has the largest intersection with the viewport
+   * and/or is actually playing.
+   */
   getVideo() {
-    return (
-      document.querySelector('video.html-main-media-player') ||
-      document.querySelector('#c-video-wrap video') ||
-      document.querySelector('video')
-    );
+    // Prefer platform adapter's detection if registered
+    const adapter = SK.platform?.current?.();
+    if (adapter?.getVideo) {
+      const v = adapter.getVideo();
+      if (v) return v;
+    }
+
+    // Generic fallback: most-visible non-tiny video, prefer playing
+    const videos = [...document.querySelectorAll('video')];
+    if (!videos.length) return null;
+
+    let best = null;
+    let bestScore = -1;
+    for (const v of videos) {
+      const rect = v.getBoundingClientRect();
+      const vh = Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0);
+      const vw = Math.min(rect.right, innerWidth) - Math.max(rect.left, 0);
+      const area = Math.max(0, vh) * Math.max(0, vw);
+      if (!area) continue;
+      // playing videos win ties; scale area a bit for them
+      const score = v.paused ? area : area * 1.5;
+      if (score > bestScore) {
+        bestScore = score;
+        best = v;
+      }
+    }
+    return best || videos[0];
   },
 
   /** Debounce helper */
