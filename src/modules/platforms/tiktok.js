@@ -41,31 +41,47 @@ SK.platform.register({
   getVideoId() {
     // Detail page: /video/123456789
     const pathMatch = location.pathname.match(/\/video\/(\d+)/);
-    if (pathMatch) return pathMatch[1];
+    if (pathMatch) {
+      SK.utils.log('TikTok ID from pathname:', pathMatch[1]);
+      return pathMatch[1];
+    }
 
     // Feed page: find the active video's link
     const v = this.getVideo();
     if (v) {
+      SK.utils.log('TikTok: found video element, searching for ID...');
       // Try parent link
       const link = v.closest('a[href*="/video/"]');
       if (link) {
         const m = link.href.match(/\/video\/(\d+)/);
-        if (m) return m[1];
+        if (m) {
+          SK.utils.log('TikTok ID from video ancestor link:', m[1]);
+          return m[1];
+        }
       }
 
       // Try data attributes on video or wrapper
       const dataId = v.dataset?.videoId || v.getAttribute('data-video-id');
-      if (dataId && /^\d+$/.test(dataId)) return dataId;
+      if (dataId && /^\d+$/.test(dataId)) {
+        SK.utils.log('TikTok ID from video data attr:', dataId);
+        return dataId;
+      }
 
       // Check wrapper elements
       let el = v.parentElement;
       for (let i = 0; i < 4 && el; i++, el = el?.parentElement) {
         const id = el.dataset?.videoId || el.getAttribute('data-video-id');
-        if (id && /^\d+$/.test(id)) return id;
+        if (id && /^\d+$/.test(id)) {
+          SK.utils.log('TikTok ID from wrapper data attr:', id);
+          return id;
+        }
         const a = el.querySelector('a[href*="/video/"]');
         if (a) {
           const m = a.href.match(/\/video\/(\d+)/);
-          if (m) return m[1];
+          if (m) {
+            SK.utils.log('TikTok ID from wrapper link:', m[1]);
+            return m[1];
+          }
         }
       }
     }
@@ -78,11 +94,15 @@ SK.platform.register({
           rect.top >= 0 && rect.left >= 0 &&
           rect.bottom <= window.innerHeight && rect.right <= window.innerWidth) {
         const m = a.href.match(/\/video\/(\d+)/);
-        if (m) return m[1];
+        if (m) {
+          SK.utils.log('TikTok ID from visible link fallback:', m[1]);
+          return m[1];
+        }
       }
     }
 
     // Nothing found
+    SK.utils.log('TikTok: NO video ID found');
     return '';
   },
 
@@ -94,10 +114,11 @@ SK.platform.register({
     );
   },
 
-  /** Build canonical URL for the currently visible video */
+    /** Build canonical URL for the currently visible video */
   getCanonicalUrl() {
     const id = this.getVideoId();
     if (/^\d+$/.test(id)) return `https://www.tiktok.com/@x/video/${id}`;
+    SK.utils.log('TikTok getCanonicalUrl: no ID, falling back to', location.pathname);
     return location.href.split('?')[0];
   },
 });

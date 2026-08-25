@@ -6,14 +6,28 @@
 // ============================================================
 
 // ---- TikTok providers ----
+// tikwm is the only reliably-working public API (tested 2026-08);
+// douyin.wtf and tiklydown are kept as last-resort with short timeouts.
+function fetchWithTimeout(url, ms = 8000) {
+  return Promise.race([
+    fetch(url),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms)),
+  ]);
+}
+
 const TIKTOK_PROVIDERS = [
   async (url) => {
-    const res = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`);
+    const res = await fetchWithTimeout(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`);
     if (!res.ok) return null;
     const data = await res.json();
+    if (data?.code !== 0) {
+      console.log('[ShortKit SW] tikwm error:', data?.msg);
+      return null;
+    }
     const d = data?.data;
     if (!d?.play && !d?.hdplay) return null;
     const fix = (u) => (u?.startsWith('//') ? `https:${u}` : u);
+    console.log('[ShortKit SW] resolved via tikwm');
     return {
       video: fix(d.hdplay || d.play),
       videoSize: d.hd_size || d.size,
@@ -23,19 +37,21 @@ const TIKTOK_PROVIDERS = [
     };
   },
   async (url) => {
-    const res = await fetch(`https://douyin.wtf/api/hybrid/video_data?url=${encodeURIComponent(url)}`);
+    const res = await fetchWithTimeout(`https://douyin.wtf/api/hybrid/video_data?url=${encodeURIComponent(url)}`, 5000);
     if (!res.ok) return null;
     const data = await res.json();
     const vd = data?.video_data?.play_addr?.url_list?.[0];
     if (!vd) return null;
+    console.log('[ShortKit SW] resolved via douyin.wtf');
     return { video: vd, audio: data?.music, provider: 'douyin.wtf' };
   },
   async (url) => {
-    const res = await fetch(`https://tiklydown.eu.org/api/download?url=${encodeURIComponent(url)}`);
+    const res = await fetchWithTimeout(`https://tiklydown.eu.org/api/download?url=${encodeURIComponent(url)}`, 5000);
     if (!res.ok) return null;
     const data = await res.json();
     const v = data?.video?.noWatermark || data?.video?.hd || data?.url;
     if (!v) return null;
+    console.log('[ShortKit SW] resolved via tiklydown');
     return { video: v, audio: data?.music, provider: 'tiklydown' };
   },
 ];
@@ -113,12 +129,15 @@ function pickProviders(pageUrl) {
 }
 
 async function resolveUrl(pageUrl) {
+  console.log('[ShortKit SW] Resolving:', pageUrl);
   const providers = pickProviders(pageUrl);
   for (const provider of providers) {
     try {
       const result = await provider(pageUrl);
       if (result?.video) return { ok: true, data: result };
-    } catch (_) { /* try next */ }
+    } catch (err) {
+      console.log('[ShortKit SW] provider failed:', err.message);
+    }
   }
   return {
     ok: false,

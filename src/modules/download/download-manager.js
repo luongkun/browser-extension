@@ -82,6 +82,13 @@ SK.downloadManager = (() => {
     SK.utils.log(`Resolving ${pageUrl} (${format})...`);
     notify('Đang giải mã link…');
 
+    // Don't even try providers with a feed URL that has no video id
+    if (/tiktok\.com\/(foryou|following)\/?$/.test(pageUrl)) {
+      SK.utils.log('Feed URL without video ID — aborting resolve');
+      notify('Không tìm thấy ID video. Cuộn trang một chút rồi thử lại.');
+      return;
+    }
+
     const media = await resolve(pageUrl, format);
     if (!media) {
       notify('Không giải mã được. Thử copy link từ thanh địa chỉ dán vào popup.');
